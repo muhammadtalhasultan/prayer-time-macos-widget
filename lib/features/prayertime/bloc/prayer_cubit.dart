@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:developer';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:geolocator/geolocator.dart';
 
-import '../data/prayer_api.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+
+import '../../../core/network/api_service.dart';
 import '../models/prayer_times.dart';
 
 enum LoadStatus { idle, loading, success, error }
 
 class PrayerState {
-  final Map<String, String> timings;
+  final PrayerTimes? prayer;
   final bool twentyFourHour;
   final String method;
   final bool automaticLocation;
@@ -20,7 +21,7 @@ class PrayerState {
   final String? lastFetchKey;
 
   const PrayerState({
-    required this.timings,
+    required this.prayer,
     required this.twentyFourHour,
     required this.method,
     required this.automaticLocation,
@@ -32,18 +33,18 @@ class PrayerState {
   });
 
   factory PrayerState.initial() => const PrayerState(
-        timings: {},
-        twentyFourHour: false,
-        method: 'Karachi',
-        automaticLocation: true,
-        lat: null,
-        lng: null,
-        status: LoadStatus.idle,
-        lastFetchKey: null,
-      );
+    prayer: null,
+    twentyFourHour: false,
+    method: 'Karachi',
+    automaticLocation: true,
+    lat: null,
+    lng: null,
+    status: LoadStatus.idle,
+    lastFetchKey: null,
+  );
 
   PrayerState copyWith({
-    Map<String, String>? timings,
+    PrayerTimes? prayer,
     bool? twentyFourHour,
     String? method,
     bool? automaticLocation,
@@ -54,7 +55,7 @@ class PrayerState {
     String? lastFetchKey,
   }) {
     return PrayerState(
-      timings: timings ?? this.timings,
+      prayer: prayer ?? this.prayer,
       twentyFourHour: twentyFourHour ?? this.twentyFourHour,
       method: method ?? this.method,
       automaticLocation: automaticLocation ?? this.automaticLocation,
@@ -67,18 +68,22 @@ class PrayerState {
   }
 
   Map<String, dynamic> toJson() => {
-        'timings': timings,
-        'twentyFourHour': twentyFourHour,
-        'method': method,
-        'automaticLocation': automaticLocation,
-        'lat': lat,
-        'lng': lng,
-        'lastFetchKey': lastFetchKey,
-      };
+    'prayer': prayer?.toJson(),
+    'twentyFourHour': twentyFourHour,
+    'method': method,
+    'automaticLocation': automaticLocation,
+    'lat': lat,
+    'lng': lng,
+    'lastFetchKey': lastFetchKey,
+  };
 
   factory PrayerState.fromJson(Map<String, dynamic> json) {
     return PrayerState(
-      timings: (json['timings'] as Map?)?.cast<String, String>() ?? {},
+      prayer: json['prayer'] != null
+          ? PrayerTimes.fromJson(
+              (json['prayer'] as Map).cast<String, dynamic>(),
+            )
+          : null,
       twentyFourHour: json['twentyFourHour'] as bool? ?? false,
       method: json['method'] as String? ?? 'Karachi',
       automaticLocation: json['automaticLocation'] as bool? ?? true,
@@ -142,16 +147,18 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
         final r = await Geolocator.requestPermission();
         if (r == LocationPermission.denied ||
             r == LocationPermission.deniedForever) {
-          
-          emit(state.copyWith(
-            status: LoadStatus.error,
-            error: 'Location permission denied',
-          ));
+          emit(
+            state.copyWith(
+              status: LoadStatus.error,
+              error: 'Location permission denied',
+            ),
+          );
           return;
         }
       }
       final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium);
+        desiredAccuracy: LocationAccuracy.medium,
+      );
       emit(state.copyWith(lat: pos.latitude, lng: pos.longitude));
       await fetchTimings(lat: pos.latitude, lng: pos.longitude);
     } catch (e) {
@@ -162,16 +169,36 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
   Future<void> fetchTimings({required double lat, required double lng}) async {
     try {
       final key = _buildKey(lat, lng, state.method);
-      // if (state.lastFetchKey == key && state.timings.isNotEmpty) {
+      // if (state.lastFetchKey == key && state.prayer != null) {
       //   emit(state.copyWith(status: LoadStatus.success));
       //   return;
       // }
       emit(state.copyWith(status: LoadStatus.loading, error: null));
-      final json =
-          await PrayerApi.timingsByCoordinates(latitude: lat, longitude: lng, method: state.method);
-      final pt = PrayerTimes.fromJson(json);
-      emit(state.copyWith(
-          timings: pt.timings, status: LoadStatus.success, lastFetchKey: key));
+      final result = await ApiService().timingsByCoordinates({
+        'latitude': lat,
+        'longitude': lng,
+        'method': state.method,
+      });
+      result.fold(
+        (failure) {
+          emit(
+            state.copyWith(status: LoadStatus.error, error: failure.message),
+          );
+        },
+        (response) {
+          final data = response.data is Map<String, dynamic>
+              ? response.data as Map<String, dynamic>
+              : Map<String, dynamic>.from(response.data);
+          final pt = PrayerTimes.fromJson(data);
+          emit(
+            state.copyWith(
+              prayer: pt,
+              status: LoadStatus.success,
+              lastFetchKey: key,
+            ),
+          );
+        },
+      );
     } catch (e) {
       emit(state.copyWith(status: LoadStatus.error, error: e.toString()));
     }
@@ -182,7 +209,7 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
     final lng = state.lng;
     if (lat == null || lng == null) return false;
     final key = _buildKey(lat, lng, state.method);
-    return state.lastFetchKey == key && state.timings.isNotEmpty;
+    return state.lastFetchKey == key && state.prayer != null;
   }
 
   String _buildKey(double lat, double lng, String method) {

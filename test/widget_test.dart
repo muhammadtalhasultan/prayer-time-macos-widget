@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart' as hb;
 
-import 'package:prayertime/main.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart' as hb;
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:prayertime/features/app.dart';
 
 void main() {
   setUpAll(() async {
@@ -12,8 +11,9 @@ void main() {
     final storage = await hb.HydratedStorage.build(storageDirectory: dir);
     HydratedBloc.storage = storage;
   });
-  testWidgets('Prayer menu renders and navigates to settings',
-      (WidgetTester tester) async {
+  testWidgets('Prayer menu renders and navigates to settings', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
     expect(find.text('Settings'), findsOneWidget);
     await tester.tap(find.text('Settings'));

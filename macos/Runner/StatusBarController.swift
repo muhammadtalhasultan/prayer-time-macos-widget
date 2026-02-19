@@ -8,12 +8,11 @@ class StatusBarController {
     init(_ popover: NSPopover) {
         self.popover = popover
         statusBar = NSStatusBar.system
-        statusItem = statusBar.statusItem(withLength: 28.0)
+        statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         
         if let statusBarButton = statusItem.button {
-            statusBarButton.image = #imageLiteral(resourceName: "AppIcon") //change this to your desired image
-            statusBarButton.image?.size = NSSize(width: 18.0, height: 18.0)
-            statusBarButton.image?.isTemplate = true
+            statusBarButton.title = "Prayer Times"
+            statusBarButton.image = nil
             statusBarButton.action = #selector(togglePopover(sender:))
             statusBarButton.target = self
         }
@@ -36,5 +35,11 @@ class StatusBarController {
     
     func hidePopover(_ sender: AnyObject) {
         popover.performClose(sender)
+    }
+    
+    func update(title: String) {
+        if let statusBarButton = statusItem.button {
+            statusBarButton.title = title
+        }
     }
 }

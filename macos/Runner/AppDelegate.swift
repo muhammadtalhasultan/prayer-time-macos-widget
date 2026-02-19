@@ -36,6 +36,23 @@ class AppDelegate: FlutterAppDelegate {
     popover.contentSize = NSSize(width: Popover.width, height: Popover.height)
     popover.contentViewController = popoverController
     statusBar = StatusBarController.init(popover)
+    
+    let channel = FlutterMethodChannel(name: "com.prayertime/statusbar",
+                                       binaryMessenger: newFlutterEngine.binaryMessenger)
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
+        switch call.method {
+        case "updateStatusTitle":
+            if let args = call.arguments as? [String: Any],
+               let title = args["title"] as? String {
+                self?.statusBar?.update(title: title)
+                result(nil)
+            } else {
+                result(FlutterError(code: "BAD_ARGS", message: "Missing title", details: nil))
+            }
+        default:
+            result(FlutterMethodNotImplemented)
+        }
+    }
     guard let window = mainFlutterWindow else {
             os_log("mainFlutterWindow is nil", type: .error)
             return

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../bloc/prayer_cubit.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -66,23 +67,36 @@ class _SettingsPageState extends State<SettingsPage> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         children: [
                           _settingsSection('Display', [
-                            _rowLabel('Menu Bar Style', trailing: _segmented([
-                              'Countdown',
-                              'Next',
-                              'Icon',
-                            ], menuBarStyle, (v) {
-                              setState(() => menuBarStyle = v);
-                            })),
-                            _switchRow('Compact Main View', compactMainView,
-                                (v) => setState(() => compactMainView = v)),
-                            _switchRow('24-Hour Time', state.twentyFourHour,
+                            _rowLabel(
+                              'Menu Bar Style',
+                              trailing: _segmented(
+                                ['Countdown', 'Next', 'Icon'],
+                                menuBarStyle,
                                 (v) {
+                                  setState(() => menuBarStyle = v);
+                                },
+                              ),
+                            ),
+                            _switchRow(
+                              'Compact Main View',
+                              compactMainView,
+                              (v) => setState(() => compactMainView = v),
+                            ),
+                            _switchRow('24-Hour Time', state.twentyFourHour, (
+                              v,
+                            ) {
                               context.read<PrayerCubit>().setTwentyFourHour(v);
                             }),
-                            _switchRow('Use Accent Color', useAccentColor,
-                                (v) => setState(() => useAccentColor = v)),
-                            _switchRow('Show Sunnah Prayers', showSunnah,
-                                (v) => setState(() => showSunnah = v)),
+                            _switchRow(
+                              'Use Accent Color',
+                              useAccentColor,
+                              (v) => setState(() => useAccentColor = v),
+                            ),
+                            _switchRow(
+                              'Show Sunnah Prayers',
+                              showSunnah,
+                              (v) => setState(() => showSunnah = v),
+                            ),
                           ]),
                           _settingsSection('Calculation', [
                             _rowLabel(
@@ -96,20 +110,21 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                             ),
-                            _switchRow('Hanafi Madhhab', hanafi,
-                                (v) => setState(() => hanafi = v)),
+                            _switchRow(
+                              'Hanafi Madhhab',
+                              hanafi,
+                              (v) => setState(() => hanafi = v),
+                            ),
                           ]),
                           _settingsSection('Location', [
-                            _switchRow(
-                              'Automatic',
-                              automaticLocation ?? true,
-                              (v) {
-                                setState(() => automaticLocation = v);
-                                context
-                                    .read<PrayerCubit>()
-                                    .setAutomaticLocation(v);
-                              },
-                            ),
+                            _switchRow('Automatic', automaticLocation ?? true, (
+                              v,
+                            ) {
+                              setState(() => automaticLocation = v);
+                              context.read<PrayerCubit>().setAutomaticLocation(
+                                v,
+                              );
+                            }),
                             _buttonRow('Refresh Location & Timings', () {
                               context
                                   .read<PrayerCubit>()
@@ -117,10 +132,16 @@ class _SettingsPageState extends State<SettingsPage> {
                             }),
                           ]),
                           _settingsSection('System', [
-                            _switchRow('Run at Login', runAtLogin,
-                                (v) => setState(() => runAtLogin = v)),
-                            _switchRow('Prayer Notifications', prayerNotifications,
-                                (v) => setState(() => prayerNotifications = v)),
+                            _switchRow(
+                              'Run at Login',
+                              runAtLogin,
+                              (v) => setState(() => runAtLogin = v),
+                            ),
+                            _switchRow(
+                              'Prayer Notifications',
+                              prayerNotifications,
+                              (v) => setState(() => prayerNotifications = v),
+                            ),
                           ]),
                         ],
                       );
@@ -171,12 +192,9 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(label, style: const TextStyle(color: Colors.white)),
           ),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
@@ -201,17 +219,17 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _dropdown(
-      List<String> items, String value, ValueChanged<String> onChanged) {
+    List<String> items,
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
     return SizedBox(
       height: 30,
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           items: items
-              .map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e),
-                  ))
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
               .toList(),
           onChanged: (v) {
             if (v != null) onChanged(v);
@@ -224,7 +242,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _segmented(
-      List<String> items, String value, ValueChanged<String> onChanged) {
+    List<String> items,
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
     return CupertinoSegmentedControl<String>(
       children: {
         for (final i in items)

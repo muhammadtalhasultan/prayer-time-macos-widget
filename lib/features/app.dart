@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
-import '../bloc/prayer_cubit.dart';
-import '../ui/prayer_menu_page.dart';
+
+import 'prayertime/bloc/prayer_cubit.dart';
+import 'prayertime/view/prayer_menu_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
       create: (_) => PrayerCubit()..initialize(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Sajda',
+        title: 'Sirate Mustaqeem',
         theme: base.copyWith(
           colorScheme: base.colorScheme.copyWith(
             primary: const Color(0xFF8AA5FF),
