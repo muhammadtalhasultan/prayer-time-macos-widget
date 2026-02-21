@@ -11,7 +11,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String menuBarStyle = 'Countdown';
+  String menuBarStyle = 'Next';
   bool compactMainView = false;
   bool useAccentColor = true;
   bool showSunnah = false;
@@ -70,7 +70,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             _rowLabel(
                               'Menu Bar Style',
                               trailing: _segmented(
-                                ['Countdown', 'Next', 'Icon'],
+                                ['Next', 'Icon'],
                                 menuBarStyle,
                                 (v) {
                                   setState(() => menuBarStyle = v);
@@ -208,11 +208,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Expanded(
             child: Text(label, style: const TextStyle(color: Colors.white)),
           ),
-          CupertinoSwitch(
-            value: value,
-            onChanged: onChanged,
-            activeTrackColor: const Color(0xFF8AA5FF),
-          ),
+          CupertinoSwitch(value: value, onChanged: onChanged),
         ],
       ),
     );

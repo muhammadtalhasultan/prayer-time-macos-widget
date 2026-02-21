@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
             primary: const Color(0xFF8AA5FF),
             secondary: const Color(0xFF8AA5FF),
           ),
-          scaffoldBackgroundColor: const Color(0xFF1E1F22),
+          scaffoldBackgroundColor: Colors.transparent,
           textTheme: base.textTheme.apply(
             bodyColor: Colors.white,
             displayColor: Colors.white,

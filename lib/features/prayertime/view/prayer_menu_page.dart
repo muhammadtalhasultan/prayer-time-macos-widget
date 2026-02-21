@@ -150,6 +150,18 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
                         alignment: Alignment.centerLeft,
                         child: Row(
                           children: [
+                            Container(
+                              height: 32,
+                              width: 32,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: AssetImage('assets/logo.png'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Sirate Mustaqeem',
@@ -190,9 +202,9 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
                         child: ListView(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           children: [
-                            _sectionHeader('Sirate Mustaqeem'),
-                            _locationChip(),
-                            const SizedBox(height: 8),
+                            // _sectionHeader('Sirate Mustaqeem'),
+                            // _locationChip(),
+                            // const SizedBox(height: 8),
                             _sectionHeader('Prayer Timings'),
                             if (prayers.isEmpty)
                               _loadingTile()
@@ -283,7 +295,9 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF2A2B2E),
+          color: const Color(
+            0xFF2A2B2E,
+          ).withOpacity(Platform.isMacOS ? 0.35 : 1),
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -314,7 +328,9 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isNext ? const Color(0xFF11ad54) : const Color(0xFF232427),
+        color: isNext
+            ? const Color(0xFF11ad54)
+            : const Color(0xFF232427).withOpacity(Platform.isMacOS ? 0.35 : 1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -349,14 +365,16 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
   }
 
   Widget _actionTile({required String title, required VoidCallback onTap}) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      // borderRadius: BorderRadius.circular(8),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF232427),
+          color: const Color(
+            0xFF232427,
+          ).withOpacity(Platform.isMacOS ? 0.35 : 1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -376,7 +394,7 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF232427),
+        color: const Color(0xFF232427).withOpacity(Platform.isMacOS ? 0.35 : 1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: const Row(
