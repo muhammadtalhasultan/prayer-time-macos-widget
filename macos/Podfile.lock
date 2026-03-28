@@ -1,4 +1,8 @@
 PODS:
+  - flutter_local_notifications (0.0.1):
+    - FlutterMacOS
+  - flutter_timezone (0.1.0):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - geolocator_apple (1.2.0):
     - Flutter
@@ -7,11 +11,17 @@ PODS:
     - FlutterMacOS
 
 DEPENDENCIES:
+  - flutter_local_notifications (from `Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos`)
+  - flutter_timezone (from `Flutter/ephemeral/.symlinks/plugins/flutter_timezone/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - geolocator_apple (from `Flutter/ephemeral/.symlinks/plugins/geolocator_apple/darwin`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
 
 EXTERNAL SOURCES:
+  flutter_local_notifications:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos
+  flutter_timezone:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_timezone/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   geolocator_apple:
@@ -20,9 +30,11 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
 SPEC CHECKSUMS:
+  flutter_local_notifications: 7062189aabf7f50938a7b8b6614ffa97656eb0bf
+  flutter_timezone: 6b906d1740654acb16e50b639835628fea851037
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  geolocator_apple: ab36aa0e8b7d7a2d7639b3b4e48308394e8cef5e
-  url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
+  geolocator_apple: 66b711889fd333205763b83c9dcf0a57a28c7afd
+  url_launcher_macos: 175a54c831f4375a6cf895875f716ee5af3888ce
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 

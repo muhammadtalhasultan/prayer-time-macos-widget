@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/native/status_bar.dart';
+import '../../../core/prayer/aladhan_time.dart';
 import '../bloc/prayer_cubit.dart';
 import 'settings_page.dart';
 
@@ -57,11 +58,11 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
     final t = s.prayer?.data.timings;
     if (t == null) return const [];
     return [
-      Prayer('Fajr', _parse(t.fajr)),
-      Prayer('Dhuhr', _parse(t.dhuhr)),
-      Prayer('Asr', _parse(t.asr)),
-      Prayer('Maghrib', _parse(t.maghrib)),
-      Prayer('Isha', _parse(t.isha)),
+      Prayer('Fajr', parseAladhanTimeToTimeOfDay(t.fajr)),
+      Prayer('Dhuhr', parseAladhanTimeToTimeOfDay(t.dhuhr)),
+      Prayer('Asr', parseAladhanTimeToTimeOfDay(t.asr)),
+      Prayer('Maghrib', parseAladhanTimeToTimeOfDay(t.maghrib)),
+      Prayer('Isha', parseAladhanTimeToTimeOfDay(t.isha)),
     ];
   }
 
@@ -174,10 +175,13 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
                             IconButton(
                               visualDensity: VisualDensity.compact,
                               onPressed: () {
-                                log('Fetching timings using current location');
+                                log('Fetching timings using city and country');
                                 context
                                     .read<PrayerCubit>()
-                                    .fetchUsingCurrentLocation();
+                                    .fetchTimingsByCity(
+                                      city: state.city,
+                                      country: state.country,
+                                    );
                               },
                               icon: const Icon(Icons.refresh, size: 18),
                               color: Colors.white70,
@@ -206,7 +210,10 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
                             // _locationChip(),
                             // const SizedBox(height: 8),
                             _sectionHeader('Prayer Timings'),
-                            if (prayers.isEmpty)
+                            if (state.status == LoadStatus.error &&
+                                (state.error?.isNotEmpty ?? false))
+                              _errorTile(state.error!)
+                            else if (prayers.isEmpty)
                               _loadingTile()
                             else
                               ...prayers.map((p) => _prayerTile(p)),
@@ -285,38 +292,6 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
           color: Colors.white70,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.2,
-        ),
-      ),
-    );
-  }
-
-  Widget _locationChip() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(
-            0xFF2A2B2E,
-          ).withOpacity(Platform.isMacOS ? 0.35 : 1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.place, size: 14, color: Colors.white70),
-            const SizedBox(width: 6),
-            Builder(
-              builder: (context) {
-                final s = context.read<PrayerCubit>().state;
-                final mode = s.automaticLocation ? 'Automatic' : 'Manual';
-                final label = s.lat != null && s.lng != null
-                    ? '$mode: ${s.lat!.toStringAsFixed(3)}, ${s.lng!.toStringAsFixed(3)}'
-                    : mode;
-                return Text(label, style: const TextStyle(color: Colors.white));
-              },
-            ),
-          ],
         ),
       ),
     );
@@ -414,11 +389,24 @@ class _PrayerMenuPageState extends State<PrayerMenuPage> {
       ),
     );
   }
-}
 
-TimeOfDay _parse(String hhmm) {
-  final parts = hhmm.split(':');
-  final h = int.tryParse(parts[0]) ?? 0;
-  final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
-  return TimeOfDay(hour: h, minute: m);
+  Widget _errorTile(String message) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3A1F1F).withOpacity(Platform.isMacOS ? 0.35 : 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 16, color: Colors.redAccent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(message, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 }

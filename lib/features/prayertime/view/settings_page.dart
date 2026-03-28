@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/notifications/prayer_notification_service.dart';
 import '../bloc/prayer_cubit.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -11,15 +13,16 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  String menuBarStyle = 'Next';
-  bool compactMainView = false;
-  bool useAccentColor = true;
-  bool showSunnah = false;
-  String? method;
-  bool hanafi = false;
-  bool? automaticLocation;
-  bool runAtLogin = false;
-  bool prayerNotifications = true;
+  final TextEditingController _cityController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController();
+  bool _isSavingLocation = false;
+
+  @override
+  void dispose() {
+    _cityController.dispose();
+    _countryController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,88 +62,93 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: BlocBuilder<PrayerCubit, PrayerState>(
+                  child: BlocConsumer<PrayerCubit, PrayerState>(
+                    listener: (context, state) {
+                      if (!_isSavingLocation) return;
+                      if (state.status == LoadStatus.success) {
+                        setState(() => _isSavingLocation = false);
+                        Navigator.of(context).pop();
+                        return;
+                      }
+                      if (state.status == LoadStatus.error) {
+                        setState(() => _isSavingLocation = false);
+                      }
+                    },
                     builder: (context, state) {
-                      method ??= state.method;
-                      automaticLocation ??= state.automaticLocation;
+                      if (_cityController.text.isEmpty) {
+                        _cityController.text = state.city;
+                      }
+                      if (_countryController.text.isEmpty) {
+                        _countryController.text = state.country;
+                      }
                       return ListView(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         children: [
-                          _settingsSection('Display', [
-                            _rowLabel(
-                              'Menu Bar Style',
-                              trailing: _segmented(
-                                ['Next', 'Icon'],
-                                menuBarStyle,
-                                (v) {
-                                  setState(() => menuBarStyle = v);
-                                },
-                              ),
-                            ),
-                            _switchRow(
-                              'Compact Main View',
-                              compactMainView,
-                              (v) => setState(() => compactMainView = v),
-                            ),
-                            _switchRow('24-Hour Time', state.twentyFourHour, (
-                              v,
-                            ) {
-                              context.read<PrayerCubit>().setTwentyFourHour(v);
-                            }),
-                            _switchRow(
-                              'Use Accent Color',
-                              useAccentColor,
-                              (v) => setState(() => useAccentColor = v),
-                            ),
-                            _switchRow(
-                              'Show Sunnah Prayers',
-                              showSunnah,
-                              (v) => setState(() => showSunnah = v),
-                            ),
-                          ]),
-                          _settingsSection('Calculation', [
+                          _settingsSection('Prayer times', [
                             _rowLabel(
                               'Method',
                               trailing: _dropdown(
                                 ['Karachi', 'MWL', 'ISNA', 'Umm Al-Qura'],
-                                method ?? 'Karachi',
-                                (v) {
-                                  setState(() => method = v);
-                                  context.read<PrayerCubit>().setMethod(v);
-                                },
+                                state.method,
+                                (v) => context.read<PrayerCubit>().setMethod(v),
                               ),
                             ),
-                            _switchRow(
-                              'Hanafi Madhhab',
-                              hanafi,
-                              (v) => setState(() => hanafi = v),
+                            _rowLabel(
+                              'Madhhab',
+                              trailing: _segmented(
+                                const ['Shafi', 'Hanafi'],
+                                state.useHanafi ? 'Hanafi' : 'Shafi',
+                                (v) => context.read<PrayerCubit>().setUseHanafi(
+                                      v == 'Hanafi',
+                                    ),
+                              ),
                             ),
+                          ]),
+                          _settingsSection('Time', [
+                            _switchRow(
+                              '24-Hour Time',
+                              state.twentyFourHour,
+                              (v) => context.read<PrayerCubit>().setTwentyFourHour(
+                                    v,
+                                  ),
+                            ),
+                          ]),
+                          _settingsSection('Notifications', [
+                            _switchRow(
+                              'Prayer notifications',
+                              state.prayerNotificationsEnabled,
+                              (v) async {
+                                await context
+                                    .read<PrayerCubit>()
+                                    .setPrayerNotifications(v);
+                              },
+                            ),
+                            if (kDebugMode)
+                              _buttonRow(
+                                'Test Notification (5 sec)',
+                                () async {
+                                  await PrayerNotificationService.instance
+                                      .sendTestNotification();
+                                },
+                              ),
                           ]),
                           _settingsSection('Location', [
-                            _switchRow('Automatic', automaticLocation ?? true, (
-                              v,
-                            ) {
-                              setState(() => automaticLocation = v);
-                              context.read<PrayerCubit>().setAutomaticLocation(
-                                v,
-                              );
-                            }),
-                            _buttonRow('Refresh Location & Timings', () {
-                              context
-                                  .read<PrayerCubit>()
-                                  .fetchUsingCurrentLocation();
-                            }),
-                          ]),
-                          _settingsSection('System', [
-                            _switchRow(
-                              'Run at Login',
-                              runAtLogin,
-                              (v) => setState(() => runAtLogin = v),
+                            _textInputRow(
+                              'City',
+                              controller: _cityController,
+                              hint: 'e.g. Lahore',
                             ),
-                            _switchRow(
-                              'Prayer Notifications',
-                              prayerNotifications,
-                              (v) => setState(() => prayerNotifications = v),
+                            _textInputRow(
+                              'Country',
+                              controller: _countryController,
+                              hint: 'e.g. Pakistan',
+                            ),
+                            _buttonRow(
+                              _isSavingLocation
+                                  ? 'Saving...'
+                                  : 'Save city & refresh',
+                              _saveCitySettings,
+                              isLoading: _isSavingLocation,
                             ),
                           ]),
                         ],
@@ -256,13 +264,17 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buttonRow(String text, VoidCallback onTap) {
+  Widget _buttonRow(
+    String text,
+    VoidCallback onTap, {
+    bool isLoading = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Align(
         alignment: Alignment.centerLeft,
         child: TextButton(
-          onPressed: onTap,
+          onPressed: isLoading ? null : onTap,
           style: TextButton.styleFrom(
             foregroundColor: Colors.white,
             backgroundColor: const Color(0xFF2A2B2E),
@@ -271,8 +283,66 @@ class _SettingsPageState extends State<SettingsPage> {
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-          child: Text(text),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isLoading) ...[
+                const SizedBox(
+                  height: 14,
+                  width: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(text),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _saveCitySettings() async {
+    if (_isSavingLocation) return;
+    final city = _cityController.text.trim();
+    final country = _countryController.text.trim();
+    if (city.isEmpty || country.isEmpty) return;
+
+    setState(() => _isSavingLocation = true);
+    await context.read<PrayerCubit>().setLocation(city: city, country: country);
+  }
+
+  Widget _textInputRow(
+    String label, {
+    required TextEditingController controller,
+    required String hint,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Colors.white38),
+              filled: true,
+              fillColor: const Color(0xFF2A2B2E),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 10,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

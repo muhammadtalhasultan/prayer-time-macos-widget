@@ -1,10 +1,7 @@
-import 'dart:async';
-import 'dart:developer';
-
-import 'package:geolocator/geolocator.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 import '../../../core/network/api_service.dart';
+import '../../../core/notifications/prayer_notification_service.dart';
 import '../models/prayer_times.dart';
 
 enum LoadStatus { idle, loading, success, error }
@@ -13,9 +10,10 @@ class PrayerState {
   final PrayerTimes? prayer;
   final bool twentyFourHour;
   final String method;
-  final bool automaticLocation;
-  final double? lat;
-  final double? lng;
+  final bool useHanafi;
+  final bool prayerNotificationsEnabled;
+  final String city;
+  final String country;
   final LoadStatus status;
   final String? error;
   final String? lastFetchKey;
@@ -24,9 +22,10 @@ class PrayerState {
     required this.prayer,
     required this.twentyFourHour,
     required this.method,
-    required this.automaticLocation,
-    required this.lat,
-    required this.lng,
+    required this.useHanafi,
+    required this.prayerNotificationsEnabled,
+    required this.city,
+    required this.country,
     required this.status,
     this.error,
     this.lastFetchKey,
@@ -36,9 +35,10 @@ class PrayerState {
     prayer: null,
     twentyFourHour: false,
     method: 'Karachi',
-    automaticLocation: true,
-    lat: null,
-    lng: null,
+    useHanafi: false,
+    prayerNotificationsEnabled: false,
+    city: 'Lahore',
+    country: 'Pakistan',
     status: LoadStatus.idle,
     lastFetchKey: null,
   );
@@ -47,9 +47,10 @@ class PrayerState {
     PrayerTimes? prayer,
     bool? twentyFourHour,
     String? method,
-    bool? automaticLocation,
-    double? lat,
-    double? lng,
+    bool? useHanafi,
+    bool? prayerNotificationsEnabled,
+    String? city,
+    String? country,
     LoadStatus? status,
     String? error,
     String? lastFetchKey,
@@ -58,9 +59,11 @@ class PrayerState {
       prayer: prayer ?? this.prayer,
       twentyFourHour: twentyFourHour ?? this.twentyFourHour,
       method: method ?? this.method,
-      automaticLocation: automaticLocation ?? this.automaticLocation,
-      lat: lat ?? this.lat,
-      lng: lng ?? this.lng,
+      useHanafi: useHanafi ?? this.useHanafi,
+      prayerNotificationsEnabled:
+          prayerNotificationsEnabled ?? this.prayerNotificationsEnabled,
+      city: city ?? this.city,
+      country: country ?? this.country,
       status: status ?? this.status,
       error: error,
       lastFetchKey: lastFetchKey ?? this.lastFetchKey,
@@ -71,9 +74,10 @@ class PrayerState {
     'prayer': prayer?.toJson(),
     'twentyFourHour': twentyFourHour,
     'method': method,
-    'automaticLocation': automaticLocation,
-    'lat': lat,
-    'lng': lng,
+    'useHanafi': useHanafi,
+    'prayerNotificationsEnabled': prayerNotificationsEnabled,
+    'city': city,
+    'country': country,
     'lastFetchKey': lastFetchKey,
   };
 
@@ -86,9 +90,11 @@ class PrayerState {
           : null,
       twentyFourHour: json['twentyFourHour'] as bool? ?? false,
       method: json['method'] as String? ?? 'Karachi',
-      automaticLocation: json['automaticLocation'] as bool? ?? true,
-      lat: (json['lat'] as num?)?.toDouble(),
-      lng: (json['lng'] as num?)?.toDouble(),
+      useHanafi: json['useHanafi'] as bool? ?? false,
+      prayerNotificationsEnabled:
+          json['prayerNotificationsEnabled'] as bool? ?? false,
+      city: json['city'] as String? ?? 'Lahore',
+      country: json['country'] as String? ?? 'Pakistan',
       status: LoadStatus.idle,
       lastFetchKey: json['lastFetchKey'] as String?,
     );
@@ -101,13 +107,13 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
   Future<void> initialize() async {
     if (_hasTodayData()) {
       emit(state.copyWith(status: LoadStatus.success));
+      await PrayerNotificationService.instance.sync(
+        notificationsEnabled: state.prayerNotificationsEnabled,
+        prayer: state.prayer,
+      );
       return;
     }
-    if (state.automaticLocation) {
-      await fetchUsingCurrentLocation();
-    } else if (state.lat != null && state.lng != null) {
-      await fetchTimings(lat: state.lat!, lng: state.lng!);
-    }
+    await fetchTimingsByCity(city: state.city, country: state.country);
   }
 
   Future<void> setTwentyFourHour(bool v) async {
@@ -117,75 +123,78 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
   Future<void> setMethod(String v) async {
     emit(state.copyWith(method: v));
     if (_hasTodayData()) return;
-    if (state.lat != null && state.lng != null) {
-      await fetchTimings(lat: state.lat!, lng: state.lng!);
-    } else if (state.automaticLocation) {
-      await fetchUsingCurrentLocation();
-    }
+    await fetchTimingsByCity(city: state.city, country: state.country);
   }
 
-  Future<void> setAutomaticLocation(bool v) async {
-    emit(state.copyWith(automaticLocation: v));
-    if (v) {
-      if (_hasTodayData()) return;
-      await fetchUsingCurrentLocation();
-    }
+  Future<void> setUseHanafi(bool v) async {
+    if (v == state.useHanafi) return;
+    emit(state.copyWith(useHanafi: v));
+    await fetchTimingsByCity(city: state.city, country: state.country);
   }
 
-  Future<void> setManualLocation(double lat, double lng) async {
-    emit(state.copyWith(lat: lat, lng: lng, automaticLocation: false));
-    await fetchTimings(lat: lat, lng: lng);
-  }
-
-  Future<void> fetchUsingCurrentLocation() async {
-    try {
-      emit(state.copyWith(status: LoadStatus.loading, error: null));
-      final perm = await Geolocator.checkPermission();
-      log('Permissions: $perm');
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        final r = await Geolocator.requestPermission();
-        if (r == LocationPermission.denied ||
-            r == LocationPermission.deniedForever) {
-          emit(
-            state.copyWith(
-              status: LoadStatus.error,
-              error: 'Location permission denied',
-            ),
-          );
-          return;
-        }
+  Future<void> setPrayerNotifications(bool enabled) async {
+    if (enabled) {
+      await PrayerNotificationService.instance.ensureInitialized();
+      final granted =
+          await PrayerNotificationService.instance.requestPermissions();
+      if (!granted) {
+        emit(
+          state.copyWith(
+            prayerNotificationsEnabled: false,
+            error: 'Notification permission was denied',
+          ),
+        );
+        await PrayerNotificationService.instance.sync(
+          notificationsEnabled: false,
+          prayer: state.prayer,
+        );
+        return;
       }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      );
-      emit(state.copyWith(lat: pos.latitude, lng: pos.longitude));
-      await fetchTimings(lat: pos.latitude, lng: pos.longitude);
-    } catch (e) {
-      emit(state.copyWith(status: LoadStatus.error, error: e.toString()));
     }
+    emit(
+      state.copyWith(
+        prayerNotificationsEnabled: enabled,
+        error: null,
+      ),
+    );
+    await PrayerNotificationService.instance.sync(
+      notificationsEnabled: state.prayerNotificationsEnabled,
+      prayer: state.prayer,
+    );
   }
 
-  Future<void> fetchTimings({required double lat, required double lng}) async {
+  Future<void> setLocation({required String city, required String country}) async {
+    final normalizedCity = city.trim();
+    final normalizedCountry = country.trim();
+    if (normalizedCity.isEmpty || normalizedCountry.isEmpty) return;
+    emit(state.copyWith(city: normalizedCity, country: normalizedCountry));
+    await fetchTimingsByCity(city: normalizedCity, country: normalizedCountry);
+  }
+
+  Future<void> fetchTimingsByCity({
+    required String city,
+    required String country,
+  }) async {
     try {
-      final key = _buildKey(lat, lng, state.method);
+      final key = _buildKey(city, country, state.method, state.useHanafi);
       // if (state.lastFetchKey == key && state.prayer != null) {
       //   emit(state.copyWith(status: LoadStatus.success));
       //   return;
       // }
       emit(state.copyWith(status: LoadStatus.loading, error: null));
-      final result = await ApiService().timingsByCoordinates({
-        'latitude': lat,
-        'longitude': lng,
+      final result = await ApiService().timingsByCity({
+        'city': city,
+        'country': country,
         'method': state.method,
+        'school': state.useHanafi ? 1 : 0,
       });
-      result.fold(
-        (failure) {
+      await result.fold(
+        (failure) async {
           emit(
             state.copyWith(status: LoadStatus.error, error: failure.message),
           );
         },
-        (response) {
+        (response) async {
           final data = response.data is Map<String, dynamic>
               ? response.data as Map<String, dynamic>
               : Map<String, dynamic>.from(response.data);
@@ -197,6 +206,10 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
               lastFetchKey: key,
             ),
           );
+          await PrayerNotificationService.instance.sync(
+            notificationsEnabled: state.prayerNotificationsEnabled,
+            prayer: pt,
+          );
         },
       );
     } catch (e) {
@@ -205,18 +218,24 @@ class PrayerCubit extends HydratedCubit<PrayerState> {
   }
 
   bool _hasTodayData() {
-    final lat = state.lat;
-    final lng = state.lng;
-    if (lat == null || lng == null) return false;
-    final key = _buildKey(lat, lng, state.method);
+    if (state.city.trim().isEmpty || state.country.trim().isEmpty) {
+      return false;
+    }
+    final key =
+        _buildKey(state.city, state.country, state.method, state.useHanafi);
     return state.lastFetchKey == key && state.prayer != null;
   }
 
-  String _buildKey(double lat, double lng, String method) {
+  String _buildKey(
+    String city,
+    String country,
+    String method,
+    bool useHanafi,
+  ) {
     final now = DateTime.now();
     final d =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    return '$method|${lat.toStringAsFixed(4)}|${lng.toStringAsFixed(4)}|$d';
+    return '$method|${useHanafi ? 1 : 0}|${city.toLowerCase()}|${country.toLowerCase()}|$d';
   }
 
   @override
