@@ -30,7 +30,5 @@
 	<string>NSApplication</string>
 	<key>LSUIElement</key>
 	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs your location to calculate prayer times accurately.</string>
 </dict>
 </plist>
